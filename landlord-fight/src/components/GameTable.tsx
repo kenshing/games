@@ -233,7 +233,7 @@ export function GameTable() {
     switch (msg.type) {
       case 'join_accept': {
         setMySeat(msg.seat);
-        setConnectedPlayers(msg.players.length);
+        setConnectedPlayers(msg.count ?? msg.players.length);
         const names = msg.players.map(p => p.name);
         setGame(prev => ({
           ...prev,
@@ -243,7 +243,7 @@ export function GameTable() {
         break;
       }
       case 'player_joined': {
-        setConnectedPlayers(c => c + 1);
+        setConnectedPlayers(prev => msg.count ?? prev + 1);
         setGame(prev => ({
           ...prev,
           players: prev.players.map((p, i) =>
@@ -260,10 +260,11 @@ export function GameTable() {
       }
       case 'deal': {
         setGame(prev => {
+          // 所有客户端都持有三家手牌：出牌校验（playCards）需要完整手牌
           const players = prev.players.map((p, i) => ({
             ...p,
             name: msg.seatNames[i] ?? p.name,
-            hand: i === mySeat ? msg.hands[i] : [],
+            hand: msg.hands[i],
             role: null,
           }));
           return {
@@ -362,7 +363,7 @@ export function GameTable() {
       ...createInitialState(),
       players: prev.players.map((p, i) => ({
         ...p,
-        hand: i === mySeat ? sortedHands[i] : [],
+        hand: sortedHands[i],
         role: null,
       })),
       deck: bottom,
@@ -514,15 +515,18 @@ export function GameTable() {
         setGame(next);
       }, 1000 + Math.random() * 800);
     }
-
-    if (game.phase === 'settled') {
-      aiTimerRef.current = setTimeout(() => {
-        const prev = gameRef.current;
-        if (prev.phase !== 'settled') return;
-        setGame(settleRound(prev));
-      }, 1800);
-    }
   }, [mode, game.phase, game.bidTurn, game.currentSeat]);
+
+  // ===== 本局结算（单机/联机通用：各方状态一致，本地确定性结算即可）=====
+  useEffect(() => {
+    if (game.phase !== 'settled') return;
+    const t = setTimeout(() => {
+      const prev = gameRef.current;
+      if (prev.phase !== 'settled') return;
+      setGame(settleRound(prev));
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [game.phase]);
 
   // ===== 返回菜单 =====
   const handleBackToMenu = useCallback(() => {

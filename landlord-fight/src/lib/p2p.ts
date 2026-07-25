@@ -7,8 +7,8 @@ import type { GameState, Seat, Card, BidAction } from '@/types/game';
 
 export type NetMessage =
   | { type: 'join_request'; name: string }
-  | { type: 'join_accept'; seat: Seat; players: { seat: Seat; name: string; isHost: boolean }[] }
-  | { type: 'player_joined'; seat: Seat; name: string }
+  | { type: 'join_accept'; seat: Seat; players: { seat: Seat; name: string; isHost: boolean }[]; count: number }
+  | { type: 'player_joined'; seat: Seat; name: string; count: number }
   | { type: 'start_game' }
   | { type: 'deal'; hands: Card[][]; bottom: Card[]; seatNames: string[] }
   | { type: 'bid'; seat: Seat; action: BidAction }
@@ -132,17 +132,20 @@ export class P2PManager {
         // 分配座位（2 或 1）
         const newSeat: Seat = this.connections.size >= 1 ? 2 : 1;
         this.playerNames[newSeat] = msg.name;
+        this.connections.set(conn.peer, conn);
+        const count = this.connections.size + 1;
 
         // 发送确认
         conn.send({
           type: 'join_accept',
           seat: newSeat,
           players: this.playerNames.map((n, i) => ({ seat: i as Seat, name: n, isHost: i === 0 })),
+          count,
         } as NetMessage);
 
-        // 通知其他玩家
-        this.broadcast({ type: 'player_joined', seat: newSeat, name: msg.name });
-        this.connections.set(conn.peer, conn);
+        // 通知其他玩家 + 房主自己的 UI
+        this.broadcast({ type: 'player_joined', seat: newSeat, name: msg.name, count }, conn.peer);
+        this._onMessage({ type: 'player_joined', seat: newSeat, name: msg.name, count });
         this._status(`${msg.name} 加入，座位 ${newSeat}`);
       } else {
         // 转发给所有其他玩家
