@@ -50,6 +50,35 @@ const PLAYER_COLORS = [
   { chip: 'border-cyan-300/60 bg-cyan-500/15 text-cyan-100', text: 'text-cyan-300' },
 ]
 
+// 默认花名池（≤5字），进取名页时随机抽取、同局不重复
+const DEFAULT_NAMES = [
+  '含笑半步癫',
+  '一日丧命散',
+  '绝命毒师',
+  '百毒不侵',
+  '千杯不倒',
+  '药不能停',
+  '试毒小能手',
+  '魔药课代表',
+  '药水品鉴师',
+  '坩埚大户',
+  '见习女巫',
+  '老巫婆',
+  '毒奶一口',
+  '解药商人',
+  '大难不死',
+  '满血复活',
+  '多喝热水',
+  '急支糖浆',
+  '鹤顶红',
+  '缓两步',
+]
+
+const pickDefaultNames = (n: number, exclude: string[] = []): string[] => {
+  const pool = [...DEFAULT_NAMES.filter((x) => !exclude.includes(x))].sort(() => Math.random() - 0.5)
+  return Array.from({ length: n }, (_, i) => pool[i % pool.length])
+}
+
 const BOTTLE_EMOJI = '🧪'
 
 const rand = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
@@ -292,9 +321,9 @@ export default function Home() {
   // ---- flow control ----
   const chooseMode = (m: Mode) => {
     setMode(m)
-    if (m === 'pvp') setNameInputs(['玩家A', '玩家B'])
-    else if (m === 'pve') setNameInputs(['你'])
-    else setNameInputs(Array.from({ length: multiCount }, (_, i) => `玩家${i + 1}`))
+    if (m === 'pvp') setNameInputs(pickDefaultNames(2))
+    else if (m === 'pve') setNameInputs(pickDefaultNames(1))
+    else setNameInputs(pickDefaultNames(multiCount))
     setPhase('names')
   }
 
@@ -302,16 +331,19 @@ export default function Home() {
     setMultiCount(n)
     setNameInputs((prev) => {
       const next = prev.slice(0, n)
-      while (next.length < n) next.push(`玩家${next.length + 1}`)
+      if (next.length < n) next.push(...pickDefaultNames(n - next.length, next))
       return next
     })
   }
 
   const confirmNames = () => {
-    const finalNames =
-      mode === 'pve'
-        ? [nameInputs[0]?.trim() || '你', '女巫']
-        : nameInputs.map((n, i) => n.trim() || `玩家${i + 1}`)
+    const used: string[] = []
+    const fill = (raw: string | undefined) => {
+      const v = raw?.trim() || pickDefaultNames(1, used)[0]
+      used.push(v)
+      return v
+    }
+    const finalNames = mode === 'pve' ? [fill(nameInputs[0]), '女巫'] : nameInputs.map((n) => fill(n))
     setPlayers(finalNames)
     setScores(Array(finalNames.length).fill(0))
     startGame(finalNames)
