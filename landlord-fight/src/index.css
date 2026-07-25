@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.625rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* ============================================================
+   欢乐斗地主 - 自定义动画
+   ============================================================ */
+
+/* 牌型横幅（顺子/飞机/炸弹等大字飞过） */
+@keyframes banner-pop {
+  0% { transform: scale(0.2) rotate(-6deg); opacity: 0; }
+  25% { transform: scale(1.15) rotate(2deg); opacity: 1; }
+  45% { transform: scale(1) rotate(0deg); opacity: 1; }
+  80% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1.05); opacity: 0; }
+}
+.animate-banner {
+  animation: banner-pop 1.4s cubic-bezier(0.22, 1.2, 0.36, 1) forwards;
+}
+
+/* 炸弹屏幕震动 */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-8px, 4px) rotate(-0.5deg); }
+  25% { transform: translate(7px, -5px) rotate(0.5deg); }
+  40% { transform: translate(-6px, -3px); }
+  55% { transform: translate(5px, 4px) rotate(-0.3deg); }
+  70% { transform: translate(-4px, 2px); }
+  85% { transform: translate(3px, -2px); }
+}
+.animate-shake {
+  animation: screen-shake 0.55s ease-in-out;
+}
+
+/* 出牌从各方向飞入 */
+@keyframes fly-in-bottom {
+  from { transform: translateY(40px) scale(0.7); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes fly-in-left {
+  from { transform: translateX(-50px) scale(0.7); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+@keyframes fly-in-right {
+  from { transform: translateX(50px) scale(0.7); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+.animate-fly-bottom { animation: fly-in-bottom 0.28s ease-out; }
+.animate-fly-left { animation: fly-in-left 0.28s ease-out; }
+.animate-fly-right { animation: fly-in-right 0.28s ease-out; }
+
+/* “不出”气泡弹出 */
+@keyframes bubble-pop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-bubble { animation: bubble-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* 当前玩家头像呼吸光圈 */
+@keyframes turn-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.9), 0 0 18px 4px rgba(250, 204, 21, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.5), 0 0 26px 8px rgba(250, 204, 21, 0.8); }
+}
+.animate-turn-glow { animation: turn-glow 1.2s ease-in-out infinite; }
+
+/* 倍数跳动（炸弹翻倍时） */
+@keyframes mult-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+.animate-mult { animation: mult-pulse 0.5s ease-out; }
+
+/* 倒计时最后几秒变红闪烁 */
+@keyframes timer-danger {
+  0%, 100% { color: #f87171; }
+  50% { color: #fecaca; }
+}
+.animate-timer-danger { animation: timer-danger 0.5s ease-in-out infinite; }
+
+/* ============================================================
+   发牌动画：牌从中央牌堆飞向三家
+   ============================================================ */
+@keyframes deal-fly-bottom {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(-50%, 34vh) scale(1); opacity: 0; }
+}
+@keyframes deal-fly-left {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(calc(-50% - 34vw), calc(-50% - 24vh)) scale(0.8); opacity: 0; }
+}
+@keyframes deal-fly-right {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(calc(-50% + 34vw), calc(-50% - 24vh)) scale(0.8); opacity: 0; }
+}
+.anim-deal-bottom { animation: deal-fly-bottom 0.7s ease-in forwards; }
+.anim-deal-left { animation: deal-fly-left 0.7s ease-in forwards; }
+.anim-deal-right { animation: deal-fly-right 0.7s ease-in forwards; }
+
+/* ============================================================
+   底牌飞给地主
+   ============================================================ */
+.bottom-fly {
+  transition: transform 0.65s cubic-bezier(0.3, 0.8, 0.4, 1), opacity 0.3s ease 0.6s;
+}

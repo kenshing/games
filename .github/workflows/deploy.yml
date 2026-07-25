@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'witch-poison/**'
+      - 'landlord-fight/**'
       - 'site-index.html'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -27,10 +28,18 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: witch-poison/package-lock.json
+          cache-dependency-path: |
+            witch-poison/package-lock.json
+            landlord-fight/package-lock.json
 
       - name: Build witch-poison
         working-directory: witch-poison
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build landlord-fight
+        working-directory: landlord-fight
         run: |
           npm ci
           npm run build
@@ -39,10 +48,12 @@ jobs:
       # _site/
       #   index.html          ← 游戏目录首页
       #   witch-poison/       ← 女巫的毒药
+      #   landlord-fight/     ← 欢乐斗地主
       - name: Assemble site
         run: |
           mkdir -p _site
           cp -r witch-poison/dist _site/witch-poison
+          cp -r landlord-fight/dist _site/landlord-fight
           cp site-index.html _site/index.html
 
       - uses: actions/upload-pages-artifact@v3
