@@ -1,0 +1,10 @@
+# node
+node_modules/
+dist/
+
+# os
+.DS_Store
+
+# misc
+*.log
+.tmp-*
