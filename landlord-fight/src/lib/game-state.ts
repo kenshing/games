@@ -207,7 +207,7 @@ export function currentMultiplier(state: GameState): number {
   return (state.bidCurrent || 1) * Math.pow(2, state.bombCount);
 }
 
-// ---- 结算本局（欢乐斗地主计分：底分 × 叫分 × 炸弹翻倍 × 春天翻倍）----
+// ---- 结算本局（满意斗地主计分：底分 × 叫分 × 炸弹翻倍 × 春天翻倍）----
 export function settleRound(state: GameState, baseScore: number = 1): GameState {
   if (state.phase !== 'settled' || state.winner === null) return state;
 

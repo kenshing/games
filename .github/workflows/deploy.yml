@@ -48,7 +48,7 @@ jobs:
       # _site/
       #   index.html          ← 游戏目录首页
       #   witch-poison/       ← 女巫的毒药
-      #   landlord-fight/     ← 欢乐斗地主
+      #   landlord-fight/     ← 满意斗地主
       - name: Assemble site
         run: |
           mkdir -p _site

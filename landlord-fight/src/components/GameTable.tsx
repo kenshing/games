@@ -1,5 +1,5 @@
 // ============================================================
-// 主游戏桌 - 欢乐斗地主体验版
+// 主游戏桌 - 满意斗地主体验版
 // 整合：单机 + P2P 联机 / 语音音效 / 倒计时 / 倍数 / 特效
 // ============================================================
 
@@ -580,7 +580,7 @@ export function GameTable() {
 
         <div className="text-6xl mb-1 select-none">🃏</div>
         <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-500 drop-shadow-lg tracking-wider">
-          欢乐斗地主
+          满意斗地主
         </h1>
         <p className="text-white/50 mb-4">经典三人斗地主 · AI 对战 · P2P 联机</p>
 
