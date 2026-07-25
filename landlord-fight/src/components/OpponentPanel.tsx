@@ -58,7 +58,7 @@ export function OpponentPanel({ name, avatar, role, cardCount, isActive, seconds
 
         {/* 倒计时 */}
         {isActive && secondsLeft !== undefined && (
-          <CountdownRing seconds={secondsLeft} total={15} size={40} />
+          <CountdownRing seconds={secondsLeft} total={60} size={40} />
         )}
       </div>
 

@@ -37,7 +37,7 @@ import { BottomCardsFly } from './BottomCardsFly';
 type AppMode = 'menu' | 'offline' | 'online_lobby' | 'online_playing';
 
 const AVATARS = ['😀', '🦊', '🐯'];
-const TURN_SECONDS = 15;
+const TURN_SECONDS = 60;
 
 export function GameTable() {
   // ===== 全局状态 =====
@@ -168,7 +168,7 @@ export function GameTable() {
   }, [game.phase]);
 
   // ============================================================
-  // 倒计时：每个行动回合 15 秒，超时自动托管
+  // 倒计时：每个行动回合 60 秒，超时自动托管
   // ============================================================
   const isMyAction =
     (game.phase === 'bidding' && game.bidTurn === mySeat) ||

@@ -2,7 +2,7 @@
 // 底部玩家手牌（点击 + 滑牌选择）
 // ============================================================
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, type PointerEvent } from 'react';
 import type { Card } from '@/types/game';
 import { CardSprite } from './CardSprite';
 import { sfxSelect } from '@/lib/sound';
@@ -18,17 +18,24 @@ interface PlayerHandProps {
 export function PlayerHand({ hand, selected, disabled, onToggleCard, onRangeSelect }: PlayerHandProps) {
   const selectedIds = useMemo(() => new Set(selected.map(c => c.id)), [selected]);
   const dragStart = useRef<number | null>(null);
+  const startX = useRef(0);
   const didDrag = useRef(false);
 
-  const handlePointerDown = (index: number) => {
+  // 横向拖动超过该阈值才算「滑牌」，否则视为单击（防手抖误触）
+  const DRAG_THRESHOLD = 10;
+
+  const handlePointerDown = (index: number, e: PointerEvent) => {
     if (disabled) return;
     dragStart.current = index;
+    startX.current = e.clientX;
     didDrag.current = false;
   };
 
-  const handlePointerEnter = (index: number) => {
+  const handlePointerEnter = (index: number, e: PointerEvent) => {
     if (disabled || dragStart.current === null) return;
     if (index === dragStart.current && !didDrag.current) return;
+    // 手牌重叠度高，单击时几像素的抖动不该触发范围重选
+    if (Math.abs(e.clientX - startX.current) < DRAG_THRESHOLD) return;
     didDrag.current = true;
     const [a, b] = [Math.min(dragStart.current, index), Math.max(dragStart.current, index)];
     onRangeSelect(hand.slice(a, b + 1));
@@ -37,7 +44,8 @@ export function PlayerHand({ hand, selected, disabled, onToggleCard, onRangeSele
 
   const handlePointerUp = (index: number) => {
     if (disabled) return;
-    if (dragStart.current !== null && !didDrag.current) {
+    // 只有按下和松手在同一张牌上才算单击；拖到邻牌松手不误触
+    if (dragStart.current === index && !didDrag.current) {
       onToggleCard(hand[index]);
       sfxSelect();
     }
@@ -64,8 +72,8 @@ export function PlayerHand({ hand, selected, disabled, onToggleCard, onRangeSele
             key={card.id}
             style={{ marginLeft: i === 0 ? 0 : overlap }}
             className="transition-transform"
-            onPointerDown={() => handlePointerDown(i)}
-            onPointerEnter={() => handlePointerEnter(i)}
+            onPointerDown={(e) => handlePointerDown(i, e)}
+            onPointerEnter={(e) => handlePointerEnter(i, e)}
             onPointerUp={() => handlePointerUp(i)}
           >
             <CardSprite
