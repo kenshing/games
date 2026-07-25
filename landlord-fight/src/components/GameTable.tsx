@@ -16,7 +16,7 @@ import { P2PManager, type NetMessage } from '@/lib/p2p';
 import {
   speak, voiceBid, voicePass, voicePattern, voiceLeftCards, voiceLandlord,
   sfxDeal, sfxPattern, sfxWin, sfxLose, sfxYourTurn, sfxTick,
-  setSoundEnabled, setVoiceEnabled,
+  setSoundEnabled, setVoiceEnabled, setBgmEnabled, startBGM,
   QUICK_CHATS, CHAT_REPLIES,
 } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
@@ -33,10 +33,11 @@ import { CardCounter } from './CardCounter';
 import { CountdownRing } from './CountdownRing';
 import { DealOverlay } from './DealOverlay';
 import { BottomCardsFly } from './BottomCardsFly';
+import { FestivalBackdrop } from './FestivalBackdrop';
 
 type AppMode = 'menu' | 'offline' | 'online_lobby' | 'online_playing';
 
-const AVATARS = ['😀', '🦊', '🐯'];
+const AVATARS = ['🧑‍🌾', '👩‍🌾', '👲'];
 const TURN_SECONDS = 60;
 
 export function GameTable() {
@@ -49,6 +50,7 @@ export function GameTable() {
   const [shake, setShake] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [voiceOn, setVoiceOn] = useState(true);
+  const [bgmOn, setBgmOn] = useState(true);
   const [counterOn, setCounterOn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [hintIndex, setHintIndex] = useState(0);
@@ -305,6 +307,7 @@ export function GameTable() {
   // ===== 创建房间 =====
   const handleCreateRoom = useCallback(async () => {
     if (!myName.trim()) { setNetStatus('请输入名字'); return; }
+    startBGM();
     const p2p = new P2PManager();
     p2pRef.current = p2p;
     p2p.onMessage(handleNetMessage);
@@ -330,6 +333,7 @@ export function GameTable() {
   const handleJoinRoom = useCallback(async () => {
     if (!myName.trim()) { setNetStatus('请输入名字'); return; }
     if (!joinCode.trim()) { setNetStatus('请输入房间号'); return; }
+    startBGM();
     const p2p = new P2PManager();
     p2pRef.current = p2p;
     p2p.onMessage(handleNetMessage);
@@ -473,6 +477,7 @@ export function GameTable() {
   // 单机模式
   // ============================================================
   const handleStartOffline = useCallback(() => {
+    startBGM();
     setGame(prev => startGame(prev));
     setSelected([]);
     setMessage('请叫分...');
@@ -550,6 +555,9 @@ export function GameTable() {
   const toggleVoice = useCallback(() => {
     setVoiceOn(v => { setVoiceEnabled(!v); return !v; });
   }, []);
+  const toggleBgm = useCallback(() => {
+    setBgmOn(v => { setBgmEnabled(!v); return !v; });
+  }, []);
 
   // ===== 判断当前是否可以操作 =====
   const canPass = game.phase === 'playing' && game.currentSeat === mySeat && game.lastValidPlay !== null;
@@ -572,7 +580,8 @@ export function GameTable() {
   // ============================================================
   if (mode === 'menu') {
     return (
-      <div className="h-screen w-screen bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-950 flex flex-col items-center justify-center gap-6 overflow-hidden relative">
+      <div className="h-screen w-screen flex flex-col items-center justify-center gap-6 overflow-hidden relative">
+        <FestivalBackdrop />
         {/* 装饰牌 */}
         <div className="absolute top-10 left-10 text-6xl opacity-20 -rotate-12 select-none">🂡</div>
         <div className="absolute bottom-16 right-12 text-6xl opacity-20 rotate-12 select-none">🂮</div>
@@ -640,7 +649,8 @@ export function GameTable() {
   // ============================================================
   if (mode === 'online_lobby') {
     return (
-      <div className="h-screen w-screen bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-950 flex flex-col items-center justify-center gap-6 overflow-hidden">
+      <div className="h-screen w-screen flex flex-col items-center justify-center gap-6 overflow-hidden relative">
+        <FestivalBackdrop />
         <h2 className="text-2xl font-bold text-white">联机大厅</h2>
 
         <div className="bg-white/10 rounded-xl p-6 w-80 text-center">
@@ -690,8 +700,9 @@ export function GameTable() {
 
   return (
     <div
-      className={`h-screen w-screen bg-gradient-to-b from-emerald-800 via-emerald-900 to-emerald-950 flex flex-col overflow-hidden relative ${shake ? 'animate-shake' : ''}`}
+      className={`h-screen w-screen flex flex-col overflow-hidden relative ${shake ? 'animate-shake' : ''}`}
     >
+      <FestivalBackdrop rim />
       {/* ===== 顶部信息栏 ===== */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-black/25 z-20">
         <div className="text-white/70 text-xs w-44">
@@ -710,7 +721,7 @@ export function GameTable() {
           </div>
           <div
             key={game.bombCount}
-            className="animate-mult px-2.5 py-1 rounded-lg bg-red-500/20 border border-red-400/40 text-red-300 text-sm font-bold"
+            className="animate-mult animate-gold-shine px-2.5 py-1 rounded-lg bg-gradient-to-b from-amber-400/30 to-red-500/25 border border-amber-400/50 text-amber-200 text-sm font-bold"
           >
             倍数 ×{multiplier}
           </div>
@@ -731,6 +742,13 @@ export function GameTable() {
             onClick={toggleSound}
           >
             {soundOn ? '🔊' : '🔇'}
+          </button>
+          <button
+            className={`px-1.5 py-1 rounded text-sm ${bgmOn ? 'bg-amber-500/30' : 'hover:bg-white/10 opacity-60'}`}
+            title={bgmOn ? '关闭背景音乐' : '开启背景音乐'}
+            onClick={toggleBgm}
+          >
+            🎵
           </button>
           <button
             className="px-1.5 py-1 rounded text-sm hover:bg-white/10"

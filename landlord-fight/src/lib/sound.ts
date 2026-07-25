@@ -31,7 +31,7 @@ function ctx(): AudioContext | null {
 }
 
 // ---- 基础合成工具 ----
-function tone(freq: number, duration: number, type: OscillatorType = 'sine', volume = 0.15, when = 0, slideTo?: number) {
+function tone(freq: number, duration: number, type: OscillatorType = 'sine', volume = 0.15, when = 0, slideTo?: number, dest?: AudioNode) {
   const c = ctx();
   if (!c) return;
   const t = c.currentTime + when;
@@ -42,7 +42,7 @@ function tone(freq: number, duration: number, type: OscillatorType = 'sine', vol
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + duration);
   gain.gain.setValueAtTime(volume, t);
   gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-  osc.connect(gain).connect(c.destination);
+  osc.connect(gain).connect(dest ?? c.destination);
   osc.start(t);
   osc.stop(t + duration + 0.05);
 }
@@ -138,6 +138,67 @@ export function sfxYourTurn() {
 }
 
 // ============================================================
+// 喜庆背景音乐（五声音阶欢快循环，WebAudio 实时合成）
+// ============================================================
+
+let bgmEnabled = true;
+let bgmTimer: number | null = null;
+let bgmStep = 0;
+let bgmNextTime = 0;
+
+export function setBgmEnabled(v: boolean) {
+  bgmEnabled = v;
+  if (!v) stopBGM();
+  else startBGM();
+}
+export function isBgmEnabled() { return bgmEnabled; }
+
+const EIGHTH = 0.235; // ≈128 BPM 的八分音符
+// 五声音阶欢乐旋律（0 = 休止），4 小节 × 8 个八分音符
+const C5 = 523.25, D5 = 587.33, E5 = 659.26, G5 = 783.99, A5 = 880, C6 = 1046.5, D6 = 1174.7;
+const MELODY = [
+  E5, G5, A5, G5, E5, D5, E5, G5,
+  A5, G5, A5, C6, D6, C6, A5, 0,
+  E5, G5, A5, G5, E5, G5, A5, C6,
+  A5, G5, E5, D5, C5, 0, 0, 0,
+];
+// 每小节根音（C - Am - F - G 走向的简化五声版）
+const BASS = [130.81, 110.0, 87.31, 98.0];
+
+function bgmSchedule() {
+  const c = audioCtx;
+  if (!c || !soundEnabled || !bgmEnabled) return;
+  while (bgmNextTime < c.currentTime + 0.6) {
+    const step = bgmStep % MELODY.length;
+    const bar = Math.floor(step / 8);
+    const when = Math.max(0, bgmNextTime - c.currentTime);
+    const m = MELODY[step];
+    if (m > 0) tone(m, EIGHTH * 0.92, 'triangle', 0.045, when);
+    if (step % 4 === 0) tone(BASS[bar], EIGHTH * 3.4, 'sine', 0.042, when);
+    if (step % 2 === 1) noise(0.035, 0.012, when, 7000, 'highpass');
+    bgmStep++;
+    bgmNextTime += EIGHTH;
+  }
+}
+
+/** 开始背景音乐（需在一次用户手势后调用，重复调用幂等） */
+export function startBGM() {
+  if (!bgmEnabled || !soundEnabled || bgmTimer !== null) return;
+  const c = ctx();
+  if (!c) return;
+  bgmStep = 0;
+  bgmNextTime = c.currentTime + 0.08;
+  bgmTimer = window.setInterval(bgmSchedule, 180);
+}
+
+export function stopBGM() {
+  if (bgmTimer !== null) {
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
+}
+
+// ============================================================
 // 中文语音播报（Web Speech API）
 // ============================================================
 
@@ -148,12 +209,17 @@ function pickChineseVoice(): SpeechSynthesisVoice | null {
   if (!('speechSynthesis' in window)) { voiceCache = null; return null; }
   const voices = window.speechSynthesis.getVoices();
   const zh = voices.filter(v => v.lang.toLowerCase().replace('_', '-').startsWith('zh'));
-  const preferred = ['Google 普通话', 'Google 國語', 'Ting-Ting', 'Tingting', '婷婷', 'Mei-Jia', 'Meijia', '美佳', 'Lilian', 'Sinji', 'Xiaoxiao'];
+  if (zh.length === 0) { voiceCache = null; return null; }
+  // 1) iOS/macOS 的增强版音色最自然
+  const enhanced = zh.find(v => /enhanced|premium|神经网络/i.test(v.name));
+  if (enhanced) { voiceCache = enhanced; return enhanced; }
+  // 2) 口碑较好的中文音色名单
+  const preferred = ['Tingting', 'Ting-Ting', '婷婷', 'Mei-Jia', 'Meijia', '美佳', 'Sinji', '欣欣', 'Lilian', 'Xiaoxiao', 'Yunxi', 'Tianyi', 'Google 普通话', 'Google 國語'];
   for (const name of preferred) {
     const v = zh.find(x => x.name.includes(name));
     if (v) { voiceCache = v; return v; }
   }
-  voiceCache = zh[0] ?? null;
+  voiceCache = zh[0];
   return voiceCache;
 }
 
@@ -163,7 +229,7 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => { voiceCache = undefined; pickChineseVoice(); };
 }
 
-/** 播报一句中文 */
+/** 播报一句中文；自动加入轻微语调抖动，听起来不那么机械 */
 export function speak(text: string, opts?: { rate?: number; pitch?: number }) {
   if (!voiceEnabled || !('speechSynthesis' in window)) return;
   try {
@@ -174,9 +240,12 @@ export function speak(text: string, opts?: { rate?: number; pitch?: number }) {
     u.lang = 'zh-CN';
     const v = pickChineseVoice();
     if (v) u.voice = v;
-    u.rate = opts?.rate ?? 1.15;
-    u.pitch = opts?.pitch ?? 1.15;
-    u.volume = 0.9;
+    // 抖动：每句 ±6% 语速、±8% 音高，避免「机器人复读」感
+    const rateJitter = 0.97 + Math.random() * 0.06;
+    const pitchJitter = 0.96 + Math.random() * 0.08;
+    u.rate = Math.min(2, (opts?.rate ?? 1.05) * rateJitter);
+    u.pitch = Math.min(2, (opts?.pitch ?? 1.08) * pitchJitter);
+    u.volume = 1.0;
     window.speechSynthesis.speak(u);
   } catch {
     // ignore
@@ -193,21 +262,22 @@ import { VALUE_NAME } from './cards';
 const PASS_LINES = ['不出', '要不起', '过', '不要'];
 
 export function voiceBid(action: number) {
-  if (action === 0) speak('不叫');
-  else speak(`${['', '一', '二', '三'][action]}分`);
+  if (action === 0) speak('不叫', { pitch: 0.95 });
+  else speak(`${['', '一', '二', '三'][action]}分`, action === 3 ? { pitch: 1.25, rate: 1.15 } : undefined);
 }
 
 export function voicePass() {
-  speak(PASS_LINES[Math.floor(Math.random() * PASS_LINES.length)]);
+  // 慵懒敷衍的语气
+  speak(PASS_LINES[Math.floor(Math.random() * PASS_LINES.length)], { pitch: 0.92, rate: 0.98 });
 }
 
 export function voicePattern(pattern: CardPattern) {
   switch (pattern.type) {
-    case 'rocket': speak('王炸！', { pitch: 1.3 }); break;
-    case 'bomb': speak('炸弹！', { pitch: 1.25 }); break;
-    case 'plane': case 'plane_single': case 'plane_pair': speak('飞机！'); break;
-    case 'straight': speak('顺子！'); break;
-    case 'straight_pair': speak('连对！'); break;
+    case 'rocket': speak('王炸！', { pitch: 1.45, rate: 1.3 }); break;
+    case 'bomb': speak('炸弹！', { pitch: 1.35, rate: 1.25 }); break;
+    case 'plane': case 'plane_single': case 'plane_pair': speak('飞机！', { pitch: 1.2, rate: 1.15 }); break;
+    case 'straight': speak('顺子！', { pitch: 1.15 }); break;
+    case 'straight_pair': speak('连对！', { pitch: 1.15 }); break;
     case 'triple': speak(`三个${VALUE_NAME[pattern.mainValue]}`); break;
     case 'triple_single': speak('三带一'); break;
     case 'triple_pair': speak('三带二'); break;
@@ -229,8 +299,9 @@ export function sfxPattern(pattern: CardPattern) {
 }
 
 export function voiceLeftCards(n: number) {
-  if (n === 1) speak('我就剩一张牌啦');
-  else if (n === 2) speak('我就剩两张牌了');
+  // 报剩牌时语气急促上扬
+  if (n === 1) speak('我就剩一张牌啦', { pitch: 1.25, rate: 1.2 });
+  else if (n === 2) speak('我就剩两张牌了', { pitch: 1.2, rate: 1.15 });
 }
 
 export function voiceLandlord(name: string) {
