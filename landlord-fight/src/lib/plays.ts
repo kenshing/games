@@ -244,12 +244,26 @@ export function generateCandidates(hand: Card[], target: CardPattern | null): Ca
     return true;
   });
 
-  // 排序：非炸弹在前（按张数、主值升序），炸弹按大小，王炸垫底
+  // 排序：非炸弹在前；同张数优先「不拆结构」（不拆对子/三张），再按主值升序；
+  // 炸弹按大小，王炸垫底
   const isBomb = (c: Candidate) => c.pattern.type === 'bomb' || c.pattern.type === 'rocket';
+  // 拆结构代价：候选中「用了但没用完」的牌值组数（单张从对子里抽 = 拆对子）
+  const breakCost = (c: Candidate) => {
+    const used = new Map<CardValue, number>();
+    for (const card of c.cards) used.set(card.value, (used.get(card.value) ?? 0) + 1);
+    let cost = 0;
+    for (const [v, n] of used) {
+      const total = groups.get(v)?.length ?? n;
+      if (n < total) cost++;
+    }
+    return cost;
+  };
   unique.sort((a, b) => {
     const ab = isBomb(a), bb = isBomb(b);
     if (ab !== bb) return ab ? 1 : -1;
     if (a.cards.length !== b.cards.length) return a.cards.length - b.cards.length;
+    const ac = breakCost(a), bc = breakCost(b);
+    if (ac !== bc) return ac - bc;
     return a.pattern.mainValue - b.pattern.mainValue;
   });
 

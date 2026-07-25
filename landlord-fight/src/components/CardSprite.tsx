@@ -45,7 +45,7 @@ function CardSpriteInner({ card, selected, disabled, hidden, small, onClick }: C
         relative rounded-lg border bg-white select-none cursor-pointer
         transition-all duration-150 ease-out
         ${selected ? '-translate-y-4 shadow-xl ring-2 ring-yellow-400 z-10' : 'hover:-translate-y-1 shadow-md'}
-        ${disabled ? 'opacity-60 cursor-not-allowed' : ''}
+        ${disabled ? 'cursor-not-allowed' : ''}
         ${small ? 'w-10 h-14 text-xs' : 'w-14 h-20 md:w-16 md:h-22 text-sm md:text-base'}
       `}
     >
