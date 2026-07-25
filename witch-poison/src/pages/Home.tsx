@@ -50,33 +50,75 @@ const PLAYER_COLORS = [
   { chip: 'border-cyan-300/60 bg-cyan-500/15 text-cyan-100', text: 'text-cyan-300' },
 ]
 
-// 默认花名池（≤5字），进取名页时随机抽取、同局不重复
-const DEFAULT_NAMES = [
-  '含笑半步癫',
-  '一日丧命散',
-  '绝命毒师',
-  '百毒不侵',
-  '千杯不倒',
-  '药不能停',
-  '试毒小能手',
-  '魔药课代表',
-  '药水品鉴师',
-  '坩埚大户',
-  '见习女巫',
-  '老巫婆',
-  '毒奶一口',
-  '解药商人',
-  '大难不死',
-  '满血复活',
-  '多喝热水',
-  '急支糖浆',
-  '鹤顶红',
-  '缓两步',
-]
+// 默认花名池（全部 ≤5 字），按主题分类；抽取时跨类别轮换，保证一局内风格多样
+const NAME_POOLS: Record<string, string[]> = {
+  毒药梗: [
+    '含笑半步癫',
+    '一日丧命散',
+    '绝命毒师',
+    '百毒不侵',
+    '千杯不倒',
+    '药不能停',
+    '试毒小能手',
+    '魔药课代表',
+    '药水品鉴师',
+    '坩埚大户',
+    '见习女巫',
+    '老巫婆',
+    '毒奶一口',
+    '解药商人',
+    '大难不死',
+    '满血复活',
+    '多喝热水',
+    '急支糖浆',
+    '鹤顶红',
+    '缓两步',
+  ],
+  果蔬系: [
+    '暴躁南瓜',
+    '忧郁香蕉',
+    '分裂西瓜',
+    '社恐土豆',
+    '傲娇草莓',
+    '暴走番茄',
+    '失眠冬瓜',
+    '躺平丝瓜',
+    '话痨玉米',
+    '秃头豆芽',
+    '委屈萝卜',
+    '开心板栗',
+  ],
+  动物系: [
+    '摸鱼猫猫',
+    '摆烂狗狗',
+    '八卦鹦鹉',
+    '干饭猪咪',
+    '装死仓鼠',
+    '社牛柯基',
+    '偷吃松鼠',
+    '炸毛刺猬',
+    '打嗝河豚',
+    '摸黑蝙蝠',
+    '贪吃浣熊',
+    '熬夜猫',
+  ],
+}
+
+// 彩蛋：这对名字同时出现在一局 → 唐伯虎点秋香局
+const EGG_NAMES = ['含笑半步癫', '一日丧命散']
 
 const pickDefaultNames = (n: number, exclude: string[] = []): string[] => {
-  const pool = [...DEFAULT_NAMES.filter((x) => !exclude.includes(x))].sort(() => Math.random() - 0.5)
-  return Array.from({ length: n }, (_, i) => pool[i % pool.length])
+  const pools = Object.values(NAME_POOLS).map((p) =>
+    p.filter((x) => !exclude.includes(x)).sort(() => Math.random() - 0.5),
+  )
+  const order = pools.map((_, i) => i).sort(() => Math.random() - 0.5)
+  const out: string[] = []
+  for (let i = 0; out.length < n && i < 200; i++) {
+    const pool = pools[order[i % order.length]]
+    const cand = pool[Math.floor(i / order.length)]
+    if (cand && !out.includes(cand)) out.push(cand)
+  }
+  return out
 }
 
 const BOTTLE_EMOJI = '🧪'
@@ -273,6 +315,7 @@ export default function Home() {
   const [celebrate, setCelebrate] = useState<number | null>(null)
   const [flavor, setFlavor] = useState('')
   const [taunt, setTaunt] = useState('')
+  const [eggMsg, setEggMsg] = useState(false)
   const [winner, setWinner] = useState<number | null>(null)
   const [deathIndex, setDeathIndex] = useState<number | null>(null)
   const [eliminated, setEliminated] = useState<number | null>(null)
@@ -284,22 +327,39 @@ export default function Home() {
 
   const { play, say, announce, stopAnnounce } = useSound(soundOn)
 
+  // 彩蛋每局只播一次
+  const eggPlayed = useRef(false)
+
   // 预热系统语音列表，兜底 TTS 首次调用才能拿到音色
   useEffect(() => {
     if ('speechSynthesis' in window) window.speechSynthesis.getVoices()
   }, [])
 
-  // 双人/乱斗模式：轮到人类玩家时播放回合宣言（等上句台词说完再开口）
+  // 双人/乱斗模式：轮到人类玩家时播放回合宣言；首回合先检查"秋香局"彩蛋
   useEffect(() => {
     if (mode === 'pve' || phase !== 'play') return
     if (drinking !== null || eliminated !== null) return
     const isFirstTurn = drunk.length === 0 && deathIndex === null
-    const t = window.setTimeout(() => announce(players[turn]), isFirstTurn ? 700 : 2400)
+    const egg = isFirstTurn && !eggPlayed.current && EGG_NAMES.every((n) => players.includes(n))
+    const handles: number[] = []
+    let announceDelay = isFirstTurn ? 700 : 2400
+    if (egg) {
+      eggPlayed.current = true
+      announceDelay = 6600 // 等彩蛋语音播完再报幕
+      handles.push(
+        window.setTimeout(() => {
+          setEggMsg(true)
+          say('哟！含笑半步癫对上一日丧命散，唐伯虎点秋香局，毒上加毒啊！', audioUrl('egg-tang.mp3'))
+        }, 600),
+        window.setTimeout(() => setEggMsg(false), 5800),
+      )
+    }
+    handles.push(window.setTimeout(() => announce(players[turn]), announceDelay))
     return () => {
-      window.clearTimeout(t)
+      handles.forEach((h) => window.clearTimeout(h))
       stopAnnounce()
     }
-  }, [phase, turn, drinking, eliminated, mode, drunk, deathIndex, announce, stopAnnounce, players])
+  }, [phase, turn, drinking, eliminated, mode, drunk, deathIndex, announce, stopAnnounce, say, players])
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   const later = (fn: () => void, ms: number) => {
@@ -360,6 +420,8 @@ export default function Home() {
     setCelebrate(null)
     setFlavor('')
     setTaunt('')
+    setEggMsg(false)
+    eggPlayed.current = false
     setWinner(null)
     setDeathIndex(null)
     setEliminated(null)
@@ -776,6 +838,11 @@ export default function Home() {
                       {alive[i] ? p : `💀 ${p}`}
                     </span>
                   ))}
+                </div>
+              )}
+              {eggMsg && (
+                <div className="text-sm text-amber-200 font-bold bg-amber-500/10 border border-amber-300/40 rounded-full px-4 py-1 animate-pulse">
+                  🎬 唐伯虎点秋香局 · 毒上加毒！
                 </div>
               )}
               {taunt && (
