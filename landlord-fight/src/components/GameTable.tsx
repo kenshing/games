@@ -18,7 +18,9 @@ import {
   voiceWin, voiceLose, voiceChat,
   sfxDeal, sfxPattern, sfxWin, sfxLose, sfxYourTurn, sfxTick,
   setSoundEnabled, setVoiceEnabled, setBgmEnabled, startBGM,
+  getVoiceCharacter, setVoiceCharacter, playClip,
   QUICK_CHATS, CHAT_REPLIES,
+  type VoiceCharacter,
 } from '@/lib/sound';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +53,7 @@ export function GameTable() {
   const [shake, setShake] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [voiceOn, setVoiceOn] = useState(true);
+  const [voiceChar, setVoiceChar] = useState<VoiceCharacter>(getVoiceCharacter());
   const [bgmOn, setBgmOn] = useState(true);
   const [counterOn, setCounterOn] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -556,6 +559,15 @@ export function GameTable() {
   const toggleVoice = useCallback(() => {
     setVoiceOn(v => { setVoiceEnabled(!v); return !v; });
   }, []);
+  const toggleVoiceChar = useCallback(() => {
+    setVoiceChar(c => {
+      const next: VoiceCharacter = c === 'female' ? 'male' : 'female';
+      setVoiceCharacter(next);
+      // 切换后立刻试听一句，给即时反馈
+      setTimeout(() => playClip('chat-3', '大家好，很高兴见到各位'), 50);
+      return next;
+    });
+  }, []);
   const toggleBgm = useCallback(() => {
     setBgmOn(v => { setBgmEnabled(!v); return !v; });
   }, []);
@@ -757,6 +769,13 @@ export function GameTable() {
             onClick={toggleVoice}
           >
             {voiceOn ? '🗣️' : '🤐'}
+          </button>
+          <button
+            className="px-1.5 py-1 rounded text-sm hover:bg-white/10"
+            title={voiceChar === 'female' ? '语音角色：女声（点击切换男声）' : '语音角色：男声（点击切换女声）'}
+            onClick={toggleVoiceChar}
+          >
+            {voiceChar === 'female' ? '👩' : '👨'}
           </button>
           <div className="text-white/60 text-[11px] ml-1 whitespace-nowrap">
             {game.players.map((p, i) => `${p.name}:${game.scores[i]}`).join(' · ')}

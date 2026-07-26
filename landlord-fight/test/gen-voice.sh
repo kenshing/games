@@ -2,8 +2,10 @@
 # 满意斗地主 · 真人感语音包批量生成（TTS 插件）
 # 用法: bash test/gen-voice.sh [起始序号] — 幂等，已存在的文件跳过
 TOOL="/Users/kenshin/Library/Application Support/kimi-desktop/daimon-share/daimon/runtime/kimi-code/home/plugins/managed/audio_generation/scripts/audio_generation_tool.py"
-VOICE="At6gj9vUVdJhTriBsuxE"  # 开朗中文女声
-OUT="$(dirname "$0")/../public/voice"
+# 音色与输出目录可用环境变量覆盖：
+#   VOICE_ID=Q63G7WZ5riIGbK8KmqO9 OUT_DIR=voice-male bash test/gen-voice.sh
+VOICE="${VOICE_ID:-At6gj9vUVdJhTriBsuxE}"  # 默认：开朗中文女声
+OUT="$(dirname "$0")/../public/${OUT_DIR:-voice}"
 mkdir -p "$OUT"
 
 declare -a LINES=(

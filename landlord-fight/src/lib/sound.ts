@@ -259,7 +259,25 @@ export function speak(text: string, opts?: { rate?: number; pitch?: number }) {
 // 真人感语音包播放（TTS 预生成音频，失败时回退 speechSynthesis）
 // ============================================================
 
-const VOICE_BASE = `${import.meta.env.BASE_URL}voice/`;
+export type VoiceCharacter = 'female' | 'male';
+
+const VOICE_CHAR_KEY = 'manyi-voice-char';
+let voiceCharacter: VoiceCharacter =
+  (typeof localStorage !== 'undefined' && localStorage.getItem(VOICE_CHAR_KEY) === 'male')
+    ? 'male' : 'female';
+
+export function getVoiceCharacter(): VoiceCharacter { return voiceCharacter; }
+export function setVoiceCharacter(c: VoiceCharacter) {
+  if (voiceCharacter === c) return;
+  voiceCharacter = c;
+  try { localStorage.setItem(VOICE_CHAR_KEY, c); } catch { /* ignore */ }
+  stopVoice();
+}
+
+function voiceBase() {
+  return `${import.meta.env.BASE_URL}${voiceCharacter === 'male' ? 'voice-male' : 'voice'}/`;
+}
+
 const clipCache = new Map<string, HTMLAudioElement>();
 let currentClip: HTMLAudioElement | null = null;
 
@@ -267,11 +285,12 @@ let currentClip: HTMLAudioElement | null = null;
 export function playClip(key: string, fallbackText?: string, opts?: { rate?: number; pitch?: number }) {
   if (!voiceEnabled) return;
   try {
-    let a = clipCache.get(key);
+    const cacheKey = `${voiceCharacter}:${key}`;
+    let a = clipCache.get(cacheKey);
     if (!a) {
-      a = new Audio(`${VOICE_BASE}${key}.mp3`);
+      a = new Audio(`${voiceBase()}${key}.mp3`);
       a.preload = 'auto';
-      clipCache.set(key, a);
+      clipCache.set(cacheKey, a);
     }
     if (currentClip && currentClip !== a) currentClip.pause();
     a.currentTime = 0;
