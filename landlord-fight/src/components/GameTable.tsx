@@ -14,7 +14,8 @@ import { generateCandidates } from '@/lib/plays';
 import { aiBidDecision, aiPlayDecision } from '@/lib/ai';
 import { P2PManager, type NetMessage } from '@/lib/p2p';
 import {
-  speak, voiceBid, voicePass, voicePattern, voiceLeftCards, voiceLandlord,
+  voiceBid, voicePass, voicePattern, voiceLeftCards, voiceLandlord,
+  voiceWin, voiceLose, voiceChat,
   sfxDeal, sfxPattern, sfxWin, sfxLose, sfxYourTurn, sfxTick,
   setSoundEnabled, setVoiceEnabled, setBgmEnabled, startBGM,
   QUICK_CHATS, CHAT_REPLIES,
@@ -133,10 +134,10 @@ export function GameTable() {
       const myRole = game.players[mySeat].role;
       if (myRole === game.roundResult.winnerRole) {
         sfxWin();
-        setTimeout(() => speak('胜利！'), 300);
+        setTimeout(() => voiceWin(), 300);
       } else {
         sfxLose();
-        setTimeout(() => speak('失败了'), 300);
+        setTimeout(() => voiceLose(), 300);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -298,7 +299,7 @@ export function GameTable() {
       }
       case 'chat': {
         setMessage(`💬 ${msg.from}: ${msg.text}`);
-        speak(msg.text);
+        voiceChat(msg.text);
         break;
       }
     }
@@ -461,14 +462,14 @@ export function GameTable() {
       p2pRef.current?.broadcast({ type: 'chat', from: game.players[mySeat].name, text });
       setMessage(`💬 我: ${text}`);
     } else {
-      speak(text);
+      voiceChat(text);
       setMessage(`💬 我: ${text}`);
       // AI 随机回一句
       setTimeout(() => {
         const reply = CHAT_REPLIES[Math.floor(Math.random() * CHAT_REPLIES.length)];
         const aiName = gameRef.current.players[1 + Math.floor(Math.random() * 2)].name;
         setMessage(`💬 ${aiName}: ${reply}`);
-        speak(reply);
+        voiceChat(reply);
       }, 1200 + Math.random() * 1500);
     }
   }, [isOnline, game.players, mySeat]);

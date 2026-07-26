@@ -10,7 +10,10 @@ let voiceEnabled = true;
 export function setSoundEnabled(v: boolean) { soundEnabled = v; }
 export function setVoiceEnabled(v: boolean) {
   voiceEnabled = v;
-  if (!v && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  if (!v) {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    stopVoice();
+  }
 }
 export function isSoundEnabled() { return soundEnabled; }
 export function isVoiceEnabled() { return voiceEnabled; }
@@ -253,6 +256,42 @@ export function speak(text: string, opts?: { rate?: number; pitch?: number }) {
 }
 
 // ============================================================
+// 真人感语音包播放（TTS 预生成音频，失败时回退 speechSynthesis）
+// ============================================================
+
+const VOICE_BASE = `${import.meta.env.BASE_URL}voice/`;
+const clipCache = new Map<string, HTMLAudioElement>();
+let currentClip: HTMLAudioElement | null = null;
+
+/** 播放语音包音频；加载/播放失败时回退到 speechSynthesis 朗读 fallback 文本 */
+export function playClip(key: string, fallbackText?: string, opts?: { rate?: number; pitch?: number }) {
+  if (!voiceEnabled) return;
+  try {
+    let a = clipCache.get(key);
+    if (!a) {
+      a = new Audio(`${VOICE_BASE}${key}.mp3`);
+      a.preload = 'auto';
+      clipCache.set(key, a);
+    }
+    if (currentClip && currentClip !== a) currentClip.pause();
+    a.currentTime = 0;
+    currentClip = a;
+    const p = a.play();
+    if (p && typeof p.catch === 'function') {
+      p.catch(() => { if (fallbackText) speak(fallbackText, opts); });
+    }
+    a.onerror = () => { if (fallbackText) speak(fallbackText, opts); };
+  } catch {
+    if (fallbackText) speak(fallbackText, opts);
+  }
+}
+
+/** 停止当前语音播报（关闭语音时调用） */
+export function stopVoice() {
+  if (currentClip) { currentClip.pause(); currentClip = null; }
+}
+
+// ============================================================
 // 满意斗地主经典语音
 // ============================================================
 
@@ -262,28 +301,27 @@ import { VALUE_NAME } from './cards';
 const PASS_LINES = ['不出', '要不起', '过', '不要'];
 
 export function voiceBid(action: number) {
-  if (action === 0) speak('不叫', { pitch: 0.95 });
-  else speak(`${['', '一', '二', '三'][action]}分`, action === 3 ? { pitch: 1.25, rate: 1.15 } : undefined);
+  playClip(`bid-${action}`, action === 0 ? '不叫' : `${['', '一', '二', '三'][action]}分`);
 }
 
 export function voicePass() {
-  // 慵懒敷衍的语气
-  speak(PASS_LINES[Math.floor(Math.random() * PASS_LINES.length)], { pitch: 0.92, rate: 0.98 });
+  const i = Math.floor(Math.random() * PASS_LINES.length);
+  playClip(`pass-${i}`, PASS_LINES[i], { pitch: 0.92, rate: 0.98 });
 }
 
 export function voicePattern(pattern: CardPattern) {
   switch (pattern.type) {
-    case 'rocket': speak('王炸！', { pitch: 1.45, rate: 1.3 }); break;
-    case 'bomb': speak('炸弹！', { pitch: 1.35, rate: 1.25 }); break;
-    case 'plane': case 'plane_single': case 'plane_pair': speak('飞机！', { pitch: 1.2, rate: 1.15 }); break;
-    case 'straight': speak('顺子！', { pitch: 1.15 }); break;
-    case 'straight_pair': speak('连对！', { pitch: 1.15 }); break;
-    case 'triple': speak(`三个${VALUE_NAME[pattern.mainValue]}`); break;
-    case 'triple_single': speak('三带一'); break;
-    case 'triple_pair': speak('三带二'); break;
-    case 'quad_single': case 'quad_pair': speak('四带二'); break;
-    case 'pair': speak(`对${VALUE_NAME[pattern.mainValue]}`); break;
-    case 'single': speak(VALUE_NAME[pattern.mainValue]); break;
+    case 'rocket': playClip('pat-rocket', '王炸！', { pitch: 1.45, rate: 1.3 }); break;
+    case 'bomb': playClip('pat-bomb', '炸弹！', { pitch: 1.35, rate: 1.25 }); break;
+    case 'plane': case 'plane_single': case 'plane_pair': playClip('pat-plane', '飞机！', { pitch: 1.2, rate: 1.15 }); break;
+    case 'straight': playClip('pat-straight', '顺子！', { pitch: 1.15 }); break;
+    case 'straight_pair': playClip('pat-straight_pair', '连对！', { pitch: 1.15 }); break;
+    case 'triple': playClip(`triple-${pattern.mainValue}`, `三个${VALUE_NAME[pattern.mainValue]}`); break;
+    case 'triple_single': playClip('pat-triple_single', '三带一'); break;
+    case 'triple_pair': playClip('pat-triple_pair', '三带二'); break;
+    case 'quad_single': case 'quad_pair': playClip('pat-quad', '四带二'); break;
+    case 'pair': playClip(`pair-${pattern.mainValue}`, `对${VALUE_NAME[pattern.mainValue]}`); break;
+    case 'single': playClip(`single-${pattern.mainValue}`, VALUE_NAME[pattern.mainValue]); break;
   }
 }
 
@@ -299,9 +337,33 @@ export function sfxPattern(pattern: CardPattern) {
 }
 
 export function voiceLeftCards(n: number) {
-  // 报剩牌时语气急促上扬
-  if (n === 1) speak('我就剩一张牌啦', { pitch: 1.25, rate: 1.2 });
-  else if (n === 2) speak('我就剩两张牌了', { pitch: 1.2, rate: 1.15 });
+  if (n === 1) playClip('left-1', '我就剩一张牌啦', { pitch: 1.25, rate: 1.2 });
+  else if (n === 2) playClip('left-2', '我就剩两张牌了', { pitch: 1.2, rate: 1.15 });
+}
+
+export function voiceWin() {
+  playClip('win', '胜利！');
+}
+
+export function voiceLose() {
+  playClip('lose', '失败了');
+}
+
+/** 快捷聊天/AI 回话：已知台词走语音包，动态文本回退 TTS */
+const CHAT_CLIP: Record<string, string> = {
+  '快点啊，等到花儿都谢了': 'chat-0',
+  '你的牌打得也太好了': 'chat-1',
+  '不要吵了，专心玩游戏吧': 'chat-2',
+  '大家好，很高兴见到各位': 'chat-3',
+  '不要走，决战到天亮': 'chat-4',
+  '咱们友谊第一，比赛第二': 'chat-5',
+  '哼，看我的厉害': 'chat-6',
+};
+
+export function voiceChat(text: string) {
+  const key = CHAT_CLIP[text];
+  if (key) playClip(key, text);
+  else speak(text);
 }
 
 export function voiceLandlord(name: string) {
